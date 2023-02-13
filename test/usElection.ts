@@ -23,6 +23,29 @@ describe("USElection", function () {
     expect(await usElection.electionEnded()).to.equal(false); // Not Ended
   });
 
+  it("Only the owner could trigger the election process", async function () {
+    var [owner, addr1] = await ethers.getSigners();
+
+    const stateResults = ["California", 1000, 900, 32];
+    await expect(usElection.connect(addr1).submitStateResult(
+      stateResults
+    )).to.be.revertedWith("Not invoked by the owner")
+  })
+
+  it("States must have at least 1 seat", async function () {
+    const stateResults = ["California", 1000, 900, 0];
+    await expect(usElection.submitStateResult(
+      stateResults
+    )).to.be.revertedWith("States must have at least 1 seat")
+  })
+
+  it("There cannot be a tie", async function () {
+    const stateResults = ["California", 300, 300, 100];
+    await expect(usElection.submitStateResult(
+      stateResults
+    )).to.be.revertedWith("There cannot be a tie")
+  })
+
   it("Should submit state results and get current leader", async function () {
     const stateResults = ["California", 1000, 900, 32];
 
@@ -55,6 +78,11 @@ describe("USElection", function () {
     expect(await usElection.currentLeader()).to.equal(2); // TRUMP
   });
 
+  it("Election is finished only by the owner", async function () {
+    var [owner, addr1] = await ethers.getSigners();
+    await expect(usElection.connect(addr1).endElection()).to.be.revertedWith("Not invoked by the owner");
+  })
+
   it("Should end the elections, get the leader and election status", async function () {
     const endElectionTx = await usElection.endElection();
 
@@ -65,5 +93,15 @@ describe("USElection", function () {
     expect(await usElection.electionEnded()).to.equal(true); // Ended
   });
 
-  //TODO: ADD YOUR TESTS
+  it("Cannot submit state results after election has ended", async function () {
+    const stateResults = ["Ohaio", 800, 1200, 33];
+
+    await expect(usElection.submitStateResult(
+      stateResults
+    )).to.be.revertedWith("The election has ended already")
+  })
+
+  it("Election is finished only when election is active", async function () {
+    await expect(usElection.endElection()).to.be.revertedWith("The election has ended already");
+  })
 });
